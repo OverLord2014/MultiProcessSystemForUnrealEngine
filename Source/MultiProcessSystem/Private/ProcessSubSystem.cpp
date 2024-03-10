@@ -4,6 +4,7 @@
 #include "..\Public\ProcessSubSystem.h"
 #include "FReadPipeRunnable.h"
 
+
 void UProcessSubSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -12,6 +13,7 @@ void UProcessSubSystem::Initialize(FSubsystemCollectionBase& Collection)
 void UProcessSubSystem::Deinitialize()
 {
 	Super::Deinitialize();
+	KillAllProcess();
 }
 
 EProcState UProcessSubSystem::StartProcess(FString inUrl, FString inParms, FString workpath, bool bLanchDetached, bool bLanchHidden,
@@ -22,19 +24,25 @@ EProcState UProcessSubSystem::StartProcess(FString inUrl, FString inParms, FStri
 	{
 		return EProcState::AlreadyCreate;
 	}
-	uint32* ProcID=nullptr;
-	void* WritePipe=nullptr;
-	void* ReadPipe=nullptr;
-	FPlatformProcess::CreatePipe(ReadPipe,WritePipe);
+	uint32 ProcID=-1;
 	
-	FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*inUrl, *inParms, bLanchDetached, bLanchHidden, bLanchReallyHidden, ProcID, 0, *workpath, WritePipe, ReadPipe);
+	void* StdOutReadHandle = nullptr;
+	void* StdOutWriteHandle = nullptr;
+	void* StdInReadHandle = nullptr;
+	void* StdInWriteHandle = nullptr;
+	FPlatformProcess::CreatePipe(StdOutReadHandle, StdOutWriteHandle);
+	FPlatformProcess::CreatePipe(StdInReadHandle, StdInWriteHandle,true);
+	
+	const FProcHandle& ProcessHandle = FPlatformProcess::CreateProc(*inUrl, *inParms, bLanchDetached, bLanchHidden, bLanchReallyHidden, &ProcID, 0, *workpath, StdOutWriteHandle, StdOutReadHandle);
 	if (ProcessHandle.IsValid())
 	{
 		NativeOnProcessOutput NativeProcessOutput;
 		NativeProcessOutput.AddUObject(this,&UProcessSubSystem::EventOnProcessOutPut);
-		FReadPipeRunnable* ReadPipeRunnable = new FReadPipeRunnable(ProcessHandle, ReadPipe, NativeProcessOutput, *ProcID, nullptr);
-		TSharedPtr<FRunnableThread> MyProcessThread = MakeShareable(FRunnableThread::Create(ReadPipeRunnable, TEXT("MyProcessThread")));
-		ProcessHandleMap.Add(inUrl,FProcessInfo(*ProcID,ProcessHandle,MyProcessThread));
+		const FString ThreadName=TEXT("TestThread");
+		
+		FReadPipeRunnable* ReadPipeRunnable = new FReadPipeRunnable(ProcessHandle, StdOutReadHandle,NativeProcessOutput,ProcID,GetWorld());
+		TSharedPtr<FRunnableThread> ReadProcessThread = MakeShareable(FRunnableThread::Create(ReadPipeRunnable, TEXT("ReadProcessThread")));
+		ProcessHandleMap.Add(inUrl,FProcessInfo(ProcID,ProcessHandle, ReadProcessThread));
 		return EProcState::CreateSuccess;
 	}
 	return EProcState::Failed;
@@ -62,5 +70,17 @@ void UProcessSubSystem::UpdateHandleState()
 
 void UProcessSubSystem::EventOnProcessOutPut(int32 ProcessID, FString DataString)
 {
+	UE_LOG(LogTemp, Warning, TEXT("OnProcessOutPut"))
 	OnProcessOutput.Broadcast(ProcessID,DataString);
+}
+
+void UProcessSubSystem::KillAllProcess()
+{
+	TArray<FString>keys;
+	ProcessHandleMap.GetKeys(keys);
+	for (int i = 0; i < keys.Num(); i++)
+	{
+		FProcessInfo Info=*ProcessHandleMap.Find(keys[i]);
+		FPlatformProcess::TerminateProc(Info.ProcessHandle);
+	}
 }

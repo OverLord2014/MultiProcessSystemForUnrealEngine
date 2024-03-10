@@ -31,7 +31,34 @@ struct FProcessInfo
 		  ProcessHandle(InProcessHandle),
 		  ProcessThread(InProcessThread){}
 };
-UCLASS()
+class FTestRunnable:public FRunnable
+{
+public:
+	virtual bool Init() override
+	{
+		return FRunnable::Init();
+	}
+
+	virtual uint32 Run() override
+	{
+		UE_LOG(LogTemp,Log,TEXT("ThreadRun"));
+		return 0;
+	}
+
+	virtual void Stop() override
+	{
+		FRunnable::Stop();
+	}
+
+	virtual void Exit() override
+	{
+		FRunnable::Exit();
+	}
+
+	FTestRunnable(const FString&InThreadName):ThreadName(InThreadName){}
+	FString ThreadName;
+};
+UCLASS(BlueprintType)
 class MULTIPROCESSSYSTEM_API UProcessSubSystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
@@ -48,6 +75,9 @@ public:
 
 	UFUNCTION()
 	void EventOnProcessOutPut(int32 ProcessID,FString DataString);
+
+	UFUNCTION(BlueprintCallable)
+	void KillAllProcess();
 protected:
 	UPROPERTY(BlueprintAssignable)
 	FOnProcessOutput OnProcessOutput;
