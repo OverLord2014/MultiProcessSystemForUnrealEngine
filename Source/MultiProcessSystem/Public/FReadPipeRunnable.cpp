@@ -5,6 +5,10 @@ bool FReadPipeRunnable::Init()
 {
 	UKismetSystemLibrary::PrintString(WorldContextObject, FString::Printf(TEXT("Process Runable Init")), false,true);
 	UE_LOG(LogTemp, Warning, TEXT("ProcessReadInit"))
+	if(!BelongThread)
+	{
+		BelongThread=FRunnableThread::CreateThread(this,ReadThreadName);
+	}
 	return FRunnable::Init();
 }
 

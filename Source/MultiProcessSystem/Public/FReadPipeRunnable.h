@@ -19,4 +19,6 @@ public:
 	NativeOnProcessOutput OnProcessOutput;
 	int32 ProcessID;
 	UObject*WorldContextObject;
+	FString ReadThreadName;
+	TSharedPtr<FRunnableThread*>BelongThread;
 };
