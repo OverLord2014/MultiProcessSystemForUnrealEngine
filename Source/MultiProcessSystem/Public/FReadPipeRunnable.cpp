@@ -7,7 +7,7 @@ bool FReadPipeRunnable::Init()
 	UE_LOG(LogTemp, Warning, TEXT("ProcessReadInit"))
 	if(!BelongThread)
 	{
-		BelongThread=FRunnableThread::CreateThread(this,ReadThreadName);
+		BelongThread=FRunnableThread::Create(this,*ReadThreadName);
 	}
 	return FRunnable::Init();
 }

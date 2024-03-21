@@ -1,6 +1,11 @@
 #pragma once
 #include "ProcessAsyncAction.h"
+#include "Misc/SpinLock.h"
 
+UE::FSpinLock MSpinLock;
+FRWLock MRWLoac;
+FCriticalSection MCriticalSection;
+TAtomic<int32> Number;
 class FReadPipeRunnable :public FRunnable
 {
 public:
@@ -20,5 +25,5 @@ public:
 	int32 ProcessID;
 	UObject*WorldContextObject;
 	FString ReadThreadName;
-	TSharedPtr<FRunnableThread*>BelongThread;
+	FRunnableThread* BelongThread;
 };
